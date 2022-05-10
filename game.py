@@ -15,14 +15,18 @@ GREEN = (0, 255, 0)
 
 class SnakeGame:
     BLOCK_SIZE = 20
-    SPEED = 20
+    SPEED = 15
 
     def __init__(self, width: int = 640, height: int = 800):
+        pygame.init()
+        
         # display
         self.width = width
         self.height = height
         self.display = pygame.display.set_mode((self.width, self.height))
+        self.score = 0
         pygame.display.set_caption("Snake Game")
+        
 
         # clock
         self.clock = pygame.time.Clock()
@@ -34,8 +38,6 @@ class SnakeGame:
         # snake
         self.head = Coords(self.width // 2, self.height // 2)
         self.body = [self.head]
-        self.history = [self.head]
-        self.length = 1
         self.direction = None
 
         # fruit
@@ -43,7 +45,7 @@ class SnakeGame:
 
     def play_step(self):
         running = True
-                
+
         self.display.fill(BLACK)
 
         for event in pygame.event.get():
@@ -51,16 +53,41 @@ class SnakeGame:
 
         self._move_snake()
 
-        self._handle_fruit()
+        running = self._is_alive()
 
-        running = not self._is_dead()
+        self._update_display()
+        self.clock.tick(self.SPEED)
+
+        return running
+
+    def play_loop(self):
+        running = True
+        while running:
+            running = self.play_step()
         
-        if not running:
-            return running
-        else:
-            self._update_display()
-            self.clock.tick(self.SPEED)
-            return running
+        text = self.font.render("Y: PLAY AGAIN, N: END GAME", False, (255, 255, 255))
+        self.display.blit(text, ((self.width // 2) - 165, self.height // 2))
+        pygame.display.flip()
+        
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_y:
+                        self.reset()
+                        self.play_loop()
+                    elif event.key == pygame.K_n:
+                        pygame.quit()
+                        quit()
+    
+    def reset(self):
+        self.display.fill(BLACK)
+        self.score = 0
+        self.head = Coords(self.width // 2, self.height // 2)
+        self.body = [self.head]
+        self.direction = None
+        self._make_fruit()
+        pygame.display.flip()
+        
 
     def _make_fruit(self):
         x = (
@@ -94,6 +121,7 @@ class SnakeGame:
                 self.direction = Direction.RIGHT
 
     def _move_snake(self):
+        # do not move snake if direction is not set
         if self.direction == None:
             return
 
@@ -106,33 +134,42 @@ class SnakeGame:
         elif self.direction == Direction.RIGHT:
             self.head = Coords(self.head.X + self.BLOCK_SIZE, self.head.Y)
 
-        self.history.insert(0, self.head)
-        self.body = self.history[: self.length]
-
-    def _handle_fruit(self):
+        self.body.insert(0, self.head)
         if self.fruit == self.head:
-            self.length += 1
-            self.history.insert(0, self.head)
-            self.body = self.history[: self.length]
+            self.score += 1
             self._make_fruit()
+        else:
+            self.body.pop()
+            
 
-    def _is_dead(self):
+    # def _handle_fruit(self):
+    #     if self.fruit == self.head:
+    #         self.body.insert(0, self.head)
+    #         print(self.body)
+    #         self._make_fruit()
+
+    def _is_alive(self):
+        alive = True
+        
         # if the snake is out of the screen
         if self.head.X - self.BLOCK_SIZE > self.width or self.head.X < 0:
-            return True
-        elif self.head.Y - self.BLOCK_SIZE > self.height or self.head.Y < 0:
-            return True
+            alive = False
+            # print("snake is out of width")
+        if self.head.Y - self.BLOCK_SIZE > self.height or self.head.Y < 0:
+            alive = False
+            # print("snake is out of height")
 
         # if the snake hit itself
-        if self.head in self.body:
-            return True
+        if self.head in self.body[1:]:
+            alive = False
+            # print("snake hit itself")
 
-        return False
+        return alive
 
     def _update_display(self):
         self.display.fill(BLACK)
 
-        text = self.font.render(f"Score: {self.length}", False, (255, 255, 255))
+        text = self.font.render(f"Score: {self.score}", False, (255, 255, 255))
 
         for part in self.body:
             pygame.draw.rect(
@@ -147,3 +184,5 @@ class SnakeGame:
 
         self.display.blit(text, (0, 0))
         pygame.display.flip()
+
+
